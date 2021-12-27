@@ -1,0 +1,22 @@
+#game-board {
+    border-collapse: collapse;
+}
+
+table {
+    border: 1px solid black;
+}
+
+td {
+    width: 20px;
+    height: 20px;
+}
+
+td.c0 {}
+
+td.c1 {
+    background-color: lightgrey;
+}
+
+td.c2 {
+    background-color: orange;
+}
