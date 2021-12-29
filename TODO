@@ -1,8 +1,8 @@
-[ ] Fix direction change. Record direction for each flick.
-[ ] Move refresh logic (startGame function) to a new "Flick" function which can be easily consumed by the View Layer.
-[ ] Improve direction detection.
+[x] Fix direction change. Record direction for each flick.
+[x] Move refresh logic (startGame function) to a new "Flick" function which can be easily consumed by the View Layer.
+[x] Improve direction detection.
+Someday:
 [ ] Add scores.
 [ ] Add speed increase as more fruits get eaten.
-[ ] Move the fruits and self bite logic to new function.
-[ ] Fix starting with two cells issue.
 [ ] Improve random spawn algorithm.
+[ ] Optimize redering function.

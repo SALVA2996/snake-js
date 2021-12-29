@@ -39,58 +39,59 @@ class LinkedList {
     }
 }
 
+// ======================
+const DirectionsEnum = Object.freeze({
+    'UP': 1,
+    'DOWN': 2,
+    'LEFT': 3,
+    'RIGHT': 4,
+});
+
+const oppositeDirections = Object.freeze({
+    [DirectionsEnum.UP]: DirectionsEnum.DOWN,
+    [DirectionsEnum.DOWN]: DirectionsEnum.UP,
+    [DirectionsEnum.LEFT]: DirectionsEnum.RIGHT,
+    [DirectionsEnum.RIGHT]: DirectionsEnum.LEFT,
+});
+// ======================
 class Snake {
-    oppositeDirections = {
-        'UP': 'DOWN',
-        'DOWN': 'UP',
-        'LEFT': 'RIGHT',
-        'RIGHT': 'LEFT',
-    };
+    _nextDirection = 0;
+    _currentDirection = DirectionsEnum.UP;
+    _pendingGrowth = 0;
+
+    _cells = null;
+
+    trace = null;
 
     constructor(startY, startX) {
-        // Cell [ ...[row, col] ]
         this._pendingGrowth = 0;
 
         this._cells = new LinkedList();
         this._cells.push([startY, startX]);
 
-        this._direction = 'UP'; // 'DOWN', 'LEFT', 'RIGHT', 'UP'
+        this._currentDirection = DirectionsEnum.UP;
         
-        this.trace = null; // Last deleted tail
+        this.trace = null;
     }
 
-    head() {
+    get _head() {
         return this._cells.head.val;
     }
 
-    tail() {
-        return this._cells.tail.val;
-    }
+    get nextCoordinates() {
+        const newHead = [...this._head];
 
-    grow() {
-        this._pendingGrowth++;
-    }
-
-    changeDirection(direction) {
-        if (this.oppositeDirections[this._direction] !== direction) {
-            this._direction = direction;
-        }
-    }
-
-    getNextCoordinates() {
-        const newHead = [...this.head()];
-
-        switch (this._direction) {
-            case 'UP':
+        switch (this._currentDirection) {
+            case DirectionsEnum.UP:
                 newHead[0] += -1;
                 break;
-            case 'DOWN':
+            case DirectionsEnum.DOWN:
                 newHead[0] += 1;
                 break;
-            case 'LEFT':
+            case DirectionsEnum.LEFT:
                 newHead[1] += -1;
                 break;
-            case 'RIGHT':
+            case DirectionsEnum.RIGHT:
                 newHead[1] += 1;
                 break;
         }
@@ -98,8 +99,25 @@ class Snake {
         return newHead;
     }
 
-    move(options = { debug: false }) {
-        const newHead = this.getNextCoordinates();
+    willEatFruit() {
+        this._pendingGrowth++;
+    }
+
+    queueDirection(nextDirection) {
+        if (oppositeDirections[this._currentDirection] !== nextDirection) {
+            this._nextDirection = nextDirection;
+        }
+    }
+
+    updateDirection() {
+        if (this._nextDirection) {
+            this._currentDirection = this._nextDirection;
+            this._nextDirection = 0;
+        }
+    }
+
+    moveInCurrentDirection(options = { debug: false }) {
+        const nextPosition = this.nextCoordinates;
 
         // Shift the tail
         if (this._pendingGrowth <= 0) {
@@ -108,7 +126,7 @@ class Snake {
             this._pendingGrowth--;
         }
 
-        this._cells.push(newHead);
+        this._cells.push(nextPosition);
 
         if (options.debug) {
             console.log(this._cells);
@@ -117,42 +135,22 @@ class Snake {
 }
 
 class Board {
+    _renderFn = null;
+    _gameOverFn = null;
+    
     constructor(rows, cols) {
-        this._debug = {
-            fruits: {
-                coordsArray: [],
-                currentFruit: 0,
-            },
-        };
-
         this._gridSize = [rows, cols];
         this._grid = null;
-
-        this.player = null;
-
-        // Replaceable API
-        this.renderFn = null;
-        this.gameOverFn = null;
-
-        this.resetBord();
     }
 
-    spawnFruit() {
-        if (this._debug?.fruits) {
-            const { coordsArray, currentFruit } = this._debug.fruits;
-            if (coordsArray.length && coordsArray.length > currentFruit) {
-                const [fRow, fCol] = coordsArray[currentFruit];
+    get _middleCoordinates() {
+        return [
+            Math.floor(this._gridSize[0] / 2),
+            Math.floor(this._gridSize[1] / 2),
+        ];
+    }
 
-                // Spawn if cell is empty
-                if (this._grid[fRow][fCol] === 0) {
-                    this._grid[fRow][fCol] = 2;
-                }
-
-                this._debug.fruits.currentFruit++;
-                return;
-            }
-        }
-
+    _spawnFruit() {
         let y = 0;
         let x = 0;
         // Random spawn
@@ -164,57 +162,34 @@ class Board {
         this._grid[y][x] = 2;
     }
 
-    snakeInsideBounds(coordinates) {
+    _isSnakeInsideBounds(coordinates) {
         return coordinates[0] >= 0 && coordinates[0] < this._gridSize[0]
             && coordinates[1] >= 0 && coordinates[1] < this._gridSize[1];
     }
 
-    setSnake(val) {
-        this.player = val;
-    }
+    _updateSnakeInBoard() {
+        this.player.updateDirection();
 
-    setDebugFruits(coordsArray) {
-        this._debug.fruits.coordsArray = coordsArray;
-        this._debug.fruits.currentFruit = 0;
-
-        this.spawnFruit();
-    }
-
-    resetBord() {
-        this._grid = new Array(this._gridSize[0]).fill(0).map(() => {
-            return new Array(this._gridSize[1]).fill(0);
-        });
-    }
-
-    getMiddleCoordinates() {
-        return [
-            Math.floor(this._gridSize[0] / 2),
-            Math.floor(this._gridSize[1] / 2),
-        ];
-    }
-
-    updatePlayerInBoard() {
-        const [nRow, nCol] = this.player.getNextCoordinates();
-        // console.log(row, col);
+        const [nRow, nCol] = this.player.nextCoordinates;
 
         // Out of bounds GO
-        if (!this.snakeInsideBounds([nRow, nCol])) {
-            this.gameOverFn();
+        if (!this._isSnakeInsideBounds([nRow, nCol])) {
+            this._gameOverFn();
             return;
         }
 
         // Will eat
         switch (board._grid[nRow][nCol]) {
             case 2: // Will eat
-                this.player.grow();
-                this.spawnFruit();
+                this.player.willEatFruit();
+                this._spawnFruit();
                 break;
             case 1: // Will die
-                this.gameOverFn();
+                this._gameOverFn();
                 return;
         }
 
-        this.player.move();
+        this.player.moveInCurrentDirection();
 
         this._grid[nRow][nCol] = 1;
 
@@ -227,10 +202,30 @@ class Board {
         }
     }
 
-    render() {
-        if (!this.renderFn) return;
+    _render() {
+        if (!this._renderFn) return;
 
-        this.renderFn(this._grid);
+        this._renderFn(this._grid);
+    }
+
+    setUp(renderFn, gameOverFn) {
+        this._gameOverFn = gameOverFn;
+        this._renderFn = renderFn;
+    }
+    
+    reset() {
+        this.player = new Snake(this._middleCoordinates[0], this._middleCoordinates[1]);
+        
+        this._grid = new Array(this._gridSize[0]).fill(0).map(() => {
+            return new Array(this._gridSize[1]).fill(0);
+        });
+
+        this._spawnFruit();
+    }
+
+    flick() {
+        this._updateSnakeInBoard();
+        this._render();
     }
 }
 
